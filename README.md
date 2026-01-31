@@ -3,6 +3,8 @@ Your personal AI coding assistant that works completely offline. No API keys. No
 
 Stop copy-pasting code from ChatGPT and hoping it works. This orchestrator actually understands your codebase, verifies its own work, and learns from its mistakes—all running 100% locally on your machine.
 
+![Local AI Coding Orchestrator Architecture](docs/images/architecture-diagram.png)
+
 Why This Exists
 Traditional AI coding tools either:
 
