@@ -1,100 +1,103 @@
-🤖 Local AI Coding Orchestrator
-Your personal AI coding assistant that works completely offline. No API keys. No cloud dependencies. No data leaving your machine.
 
-Stop copy-pasting code from ChatGPT and hoping it works. This orchestrator actually understands your codebase, verifies its own work, and learns from its mistakes—all running 100% locally on your machine.
+<div align="center">
+
+# 🤖 Local AI Coding Orchestrator
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Docker](https://img.shields.io/badge/Docker-Container-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000?logo=ollama&logoColor=white)](https://ollama.ai)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
+
+**Your personal AI coding assistant that works completely offline.**
+<br>
+*No API keys. No cloud dependencies. No data leaks.*
+
+[Why This Exists](#-why-this-exists) • [Features](#-key-features-v20) • [How It Works](#-architecture--workflow) • [Quick Start](#-quick-start)
+
+</div>
+
+---
+
+## 📖 Overview
+
+Stop copy-pasting code from ChatGPT and hoping it works. This orchestrator **actually understands your codebase**, **verifies its own work**, and **learns from its mistakes**—all running 100% locally on your machine.
 
 ![Local AI Coding Orchestrator Architecture](docs/images/architecture-diagram.png)
 
-Why This Exists
-Traditional AI coding tools either:
+## ❓ Why This Exists
 
-Send your proprietary code to the cloud (privacy nightmare)
+Traditional AI coding tools force a compromise between convenience and security. The Local AI Orchestrator solves the "Trilemma" of AI coding:
 
-Generate code without understanding your project's context (integration hell)
+| The Problem | The Solution |
+| :--- | :--- |
+| ☁️ **Privacy Nightmare**<br>Sending proprietary code to the cloud. | **100% Local Execution**<br>Runs on Docker + Ollama. Your IP never leaves your LAN. |
+| 🧩 **Integration Hell**<br>Generating code without project context. | **Semantic Search (RAG)**<br>Vector-embedded understanding of your specific architecture. |
+| 🐛 **Debugging Nightmare**<br>AI generates code that doesn't compile. | **Self-Verification Loop**<br>The agent runs builds/tests and fixes its own errors before finishing. |
 
-Can't verify if their changes actually work (debugging nightmare)
+---
 
-This tool solves all three. It's like having a junior developer who:
+## ✨ Key Features (v2.0)
 
-Follows Instructions: Reads your Architecture.md before writing a single line of code.
+It's like having a junior developer who works 24/7 for free, but never forgets instructions.
 
-** cleans Up:** Auto-formats code to prevent syntax errors.
+### 📚 Documentation-First Intelligence
+The agent performs **Semantic Documentation Search** before every task.
+* **Global Context:** Scans `Architecture.md` for high-level patterns before planning.
+* **Just-In-Time Context:** Pulls up `TestingGuidelines.md` automatically when writing tests.
 
-Verifies: Actually runs the tests before saying "it's done".
+### 🔗 Smart Context (The "Family Finder")
+Heuristic analysis links related files automatically. If you edit `UserService.cs`, the agent auto-loads:
+* `IUserService.cs` (The Contract)
+* `UserServiceTests.cs` (The Usage)
+* *Result: No more hallucinating methods that don't exist.*
 
-Learns: Gets smarter every time they fix a bug.
+### 🧹 "The Janitor" (Auto-Linting)
+Generative AI often misses semicolons or indentation.
+* **The Janitor** runs immediately after every edit (e.g., `dotnet format`).
+* It silently fixes syntax errors *before* the compiler sees them, saving massive amounts of retry time.
 
-Works Free: 24/7, on your hardware.
+---
 
-✨ New Features (v2.0)
-📚 Documentation-First Intelligence
-The agent doesn't just guess. It performs Semantic Documentation Search before every task:
+## 🏗️ Architecture & Workflow
 
-Global Context: Scans for high-level patterns in Architecture.md before planning.
+The system utilizes a feedback loop driven by episodic memory and vector embeddings.
 
-Just-In-Time Context: When writing a test, it pulls up TestingGuidelines.md automatically.
+```mermaid
+graph TD
+    A[Start: Plan.md] --> B[INDEX: Structure-Aware Embedding]
+    B --> C[PLAN: Parse & Global Doc Search]
+    C --> D[SMART SEARCH: Vector + Family Finder]
+    D --> E[EXECUTE: Aider + LLM Edit]
+    E --> F[THE JANITOR: Auto-Lint]
+    F --> G{VERIFY: Build/Test}
+    G -- Fail --> H[REFLECT: Root Cause Analysis]
+    H --> E
+    G -- Pass --> I[LEARN: Save to Episodic Memory]
+    I --> J[Done]
+Tech Stack
+Orchestrator: Python 3.12 (Workflow Engine)
 
-🔗 Smart Context (The "Family Finder")
-If you ask the agent to edit UserService.cs, it automatically detects and reads:
+Vector DB: PostgreSQL + pgvector (Semantic Memory)
 
-IUserService.cs (The Interface/Contract)
-
-UserServiceTests.cs (The usage patterns) No more hallucinating methods that don't exist.
-
-🧹 "The Janitor" (Auto-Linting)
-Generative AI often misses a semicolon or messes up indentation.
-
-The Janitor runs immediately after every edit (e.g., dotnet format).
-
-It silently fixes syntax errors before the compiler ever sees them, saving massive amounts of retry time.
-
-🏗️ How It Works
-┌─────────────────────────────────────────────────────────┐
-│  1. INDEX: Scan & embed code + docs (Structure-Aware)   │
-│     └─> Chunks code by class/method, docs by headers    │
-├─────────────────────────────────────────────────────────┤
-│  2. PLAN: Parse your feature request (Markdown)         │
-│     └─> Extract actionable steps + Global Doc Search    │
-├─────────────────────────────────────────────────────────┤
-│  3. SMART SEARCH: Gather Context                        │
-│     └─> Vector Search + "Family Finder" (Tests/Interfaces) │
-├─────────────────────────────────────────────────────────┤
-│  4. EXECUTE: Aider + LLM edits the actual files         │
-│     └─> Applies changes -> RUNS "THE JANITOR" (Linting) │
-├─────────────────────────────────────────────────────────┤
-│  5. VERIFY: Run build/test commands you specified       │
-│     └─> Did it actually work?                           │
-├─────────────────────────────────────────────────────────┤
-│  6. REFLECT & FIX: If verification failed...            │
-│     └─> Root cause analysis + retry with fix            │
-├─────────────────────────────────────────────────────────┤
-│  7. LEARN: Success? Save solution to memory             │
-│     └─> Next time this breaks, instant fix              │
-└─────────────────────────────────────────────────────────┘
-Tech Stack:
-
-Orchestrator: Python (workflow engine)
-
-Vector DB: PostgreSQL + pgvector (semantic search + memory)
-
-Agent: Aider + Ollama (code editing with local LLMs)
+Agent: Aider + Ollama (DeepSeek Coder v2)
 
 🚀 Quick Start
 Prerequisites
-1. Docker Desktop (running)
+Docker Desktop (Running)
 
-2. Ollama (install here)
+Ollama (Download)
 
-Pull the recommended models (Stable & Efficient):
+1. Model Setup
+Pull the recommended stable/efficient models:
 
 Bash
-ollama pull deepseek-coder-v2      # The coding brain
-ollama pull nomic-embed-text       # The vector search (Low VRAM usage)
-3. Configure Ollama for Docker
+ollama pull deepseek-coder-v2      # The Coding Brain
+ollama pull nomic-embed-text       # The Vector Search (Low VRAM)
+2. Network Configuration
+Allow Docker to access your host Ollama instance.
 
-The orchestrator runs in Docker and needs to reach Ollama on your host machine:
-
-Windows:
+Windows (PowerShell):
 
 PowerShell
 setx OLLAMA_HOST "0.0.0.0"
@@ -104,7 +107,7 @@ Mac/Linux:
 Bash
 launchctl setenv OLLAMA_HOST "0.0.0.0"
 pkill ollama && ollama serve
-Installation
+3. Installation
 Bash
 # Clone the repo
 git clone <your-repo-url>
@@ -117,7 +120,7 @@ docker-compose build
 docker-compose up -d vectordb
 💻 Usage
 Step 1: Write a Plan
-Create a Markdown file describing your feature (e.g., add_login.md). Tip: The agent now respects Verification commands strictly.
+Create a Markdown file (e.g., add_login.md) describing your goal. Tip: Be specific with verification commands.
 
 Markdown
 # Goal: Implement user login endpoint
@@ -139,49 +142,52 @@ Bash
 # Basic run
 docker-compose run --rm orchestrator python -m orchestrator.main add_login.md
 
-# Force re-index (Use this if you added new .md documentation files!)
+# Force re-index (Use if you added new documentation)
 docker-compose run --rm orchestrator python -m orchestrator.main add_login.md --reindex
-Step 3: Review Changes
-The agent modifies your files directly. Use Git to review:
+Step 3: Review
+The agent modifies your files directly.
 
 Bash
 git diff
 ⚙️ Configuration
-Stability Settings (Low VRAM)
-By default, we recommend nomic-embed-text to prevent OOM crashes when running alongside large coding models.
+Low VRAM Mode (Stability)
+We recommend nomic-embed-text to prevent OOM crashes when running alongside large coding models.
 
 Edit orchestrator/config.py:
 
 Python
-# orchestrator/config.py
-
 OLLAMA_MODEL = "deepseek-coder-v2"
 EMBEDDING_MODEL = "nomic-embed-text" # Small, fast, highly accurate
 EMBEDDING_DIM = 768                # CRITICAL: Must match model dimensions
-⚠️ Important: If you change EMBEDDING_DIM, reset the database:
+⚠️ Important: If you change EMBEDDING_DIM, you must reset the database:
 
 Bash
 docker-compose down -v
 docker-compose up -d vectordb
 🛡️ Troubleshooting
-"HTTP Error 500" during indexing
-Cause: Ollama ran out of VRAM while generating embeddings. Fix:
+<details> <summary><strong>HTTP Error 500 during indexing</strong></summary>
 
-Ensure config.py is set to nomic-embed-text (768 dim).
+Cause: Ollama ran out of VRAM while generating embeddings. Fix: Ensure config.py is using nomic-embed-text. The indexer also has a built-in "breather" (1s pause) between chunks.
 
-The indexer now has a built-in "breather" (1s pause) between chunks to let VRAM flush.
+</details>
 
-"No documentation found"
-Cause: The vector search was getting confused by mixed content types. Fix: The system now uses SQL-level filtering (WHERE file_path LIKE '%.md') to ensure documentation searches always return actual docs.
+<details> <summary><strong>"No documentation found"</strong></summary>
 
-Build/test commands fail inside Docker
-Cause: Missing dependencies. Fix: Mount your local caches in docker-compose.yml:
+Cause: Vector search confused by mixed content types. Fix: The system now uses SQL-level filtering (WHERE file_path LIKE '%.md') to ensure documentation searches always return actual docs.
+
+</details>
+
+<details> <summary><strong>Build/test commands fail inside Docker</strong></summary>
+
+Cause: Missing dependencies in the container. Fix: Mount your local caches in docker-compose.yml:
 
 YAML
 volumes:
   - .:/workspace
   - ~/.nuget:/root/.nuget  # Cache .NET packages
   - ~/.npm:/root/.npm      # Cache Node packages
+</details>
+
 📜 License
 Copyright © 2026. All Rights Reserved. This is proprietary software made available for viewing and educational purposes only.
 
