@@ -1,63 +1,99 @@
-import os
-import re
+import requests
 import json
-import tempfile
-import urllib.request
-import urllib.error
-from pathlib import Path
-from .config import logger, OLLAMA_MODEL, OLLAMA_TIMEOUT, OLLAMA_URL  # <--- Added OLLAMA_URL
-from .process_utils import run_with_timeout
+import re
+import ast
+from .config import OLLAMA_URL, OLLAMA_MODEL, EMBEDDING_MODEL, logger
 
-def extract_json(text):
-    if not text: return None
-    m = re.search(r'```(?:json)?\s*([\[\{].*?[\]\}])\s*```', text, re.DOTALL)
-    if m: return m.group(1)
-    m = re.search(r'(\{.*\})', text, re.DOTALL)
-    if m: return m.group(1)
-    m = re.search(r'(\[.*\])', text, re.DOTALL)
-    if m: return m.group(1)
-    return text
-
-def ollama_query(prompt):
-    logger.info(f"→ Querying AI...")
-    with tempfile.NamedTemporaryFile("w+", suffix=".md", delete=False, encoding="utf-8") as f:
-        f.write(prompt)
-        fname = f.name
-    
-    # Use 'type' on Windows, 'cat' on Unix
-    cat_cmd = 'type' if os.name == 'nt' else 'cat'
-    cmd = f'{cat_cmd} "{fname}" | ollama run {OLLAMA_MODEL}'
-    
-    try:
-        out, err, code, to = run_with_timeout(cmd, timeout=OLLAMA_TIMEOUT)
-        if to or code != 0: return None
-        return out.strip()
-    finally:
-        try: Path(fname).unlink()
-        except: pass
+import requests
+import json
+import re
+import ast
+from .config import OLLAMA_URL, PLANNER_MODEL, EMBEDDING_MODEL, logger
 
 def get_embedding(text):
-    """
-    Generates a vector embedding using Python's standard library (Windows-Safe).
-    """
     try:
         url = f"{OLLAMA_URL}/api/embeddings"
-        payload = {
-            "model": "qwen3-embedding", # Ensure you ran: ollama pull nomic-embed-text
-            "prompt": text
-        }
-        
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'}
-        )
-        
-        # 10s timeout for embeddings is usually enough per chunk
-        with urllib.request.urlopen(req, timeout=10) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            return result.get("embedding")
-            
+        payload = {"model": EMBEDDING_MODEL, "prompt": text}
+        response = requests.post(url, json=payload, timeout=120)
+        if response.status_code == 200:
+            return response.json().get("embedding")
     except Exception as e:
         logger.error(f"Failed to get embedding: {e}")
-        return None
+    return None
+
+def ollama_query(prompt, model=PLANNER_MODEL):
+    """
+    Sends a request to Ollama.
+    Allows switching between PLANNER_MODEL and CODER_MODEL dynamically.
+    """
+    try:
+        url = f"{OLLAMA_URL}/api/generate"
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "num_ctx": 8192 # Increased for larger context reasoning
+            }
+        }
+        
+        response = requests.post(url, json=payload, timeout=600)
+        
+        if response.status_code == 200:
+            return response.json().get("response", "")
+        else:
+            logger.error(f"Ollama query failed: {response.text}")
+            return ""
+    except Exception as e:
+        logger.error(f"Ollama query failed: {e}")
+        return ""
+
+
+def extract_json(text):
+    """
+    Robustly extracts and repairs JSON from LLM output.
+    Handles Markdown fences, single quotes, and trailing commas.
+    """
+    text = text.strip()
+    
+    # 1. Strip Markdown Code Blocks (```json ... ```)
+    match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
+    if match:
+        text = match.group(1)
+    
+    # 2. Isolate the JSON array/object if there is extra chatter
+    # Find the first '[' or '{'
+    start_idx = -1
+    for i, char in enumerate(text):
+        if char in ['{', '[']:
+            start_idx = i
+            break
+            
+    # Find the last ']' or '}'
+    end_idx = -1
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] in ['}', ']']:
+            end_idx = i + 1
+            break
+            
+    if start_idx != -1 and end_idx != -1:
+        text = text[start_idx:end_idx]
+
+    # 3. Attempt to Parse & Repair
+    try:
+        # First try: Standard Strict JSON
+        return json.dumps(json.loads(text)) 
+    except:
+        try:
+            # Second try: Repair Trailing Commas (common error: [1, 2,])
+            text_fixed = re.sub(r',\s*([\]}])', r'\1', text)
+            return json.dumps(json.loads(text_fixed))
+        except:
+            try:
+                # Third try: Python Eval (Handles single quotes: {'id': 1})
+                # WARNING: Only use on trusted local LLM output
+                return json.dumps(ast.literal_eval(text))
+            except:
+                # Give up and return original (caller will handle failure)
+                return text

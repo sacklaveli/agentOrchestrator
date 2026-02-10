@@ -9,14 +9,16 @@ from .ai_client import ollama_query, extract_json, get_embedding
 from .vector_store import VectorStore 
 
 def run_aider(project_dir, directive, context_files, step_id):
+    # --- HARDENED PROMPT ---
     enforcer_footer = """
 \n
 TIMETABLE: IMMEDIATE
-TASK: Fix the code errors listed above.
 OUTPUT FORMAT:
-1. Use standard SEARCH/REPLACE blocks.
-2. NO comments inside the SEARCH block (must match exactly).
-3. NO conversational text.
+1. You are using WHOLE FILE edit mode.
+2. **OUTPUT ONLY CODE.**
+3. **DO NOT** wrap the filename in markdown (e.g. `path/to/file.cs`).
+4. **DO NOT** write the filename at the top. Start directly with `using` or `namespace`.
+5. If you write the filename, the build WILL FAIL.
 """
     final_directive = directive + enforcer_footer
 
@@ -36,7 +38,7 @@ OUTPUT FORMAT:
     }
     
     cmd = (f'aider --yes-always --no-auto-commits --dirty-commits --no-pretty '
-           f'--model ollama/{OLLAMA_MODEL} --message-file "{msg_file}"')
+           f'--model ollama/{OLLAMA_MODEL} --edit-format whole --message-file "{msg_file}"')
     
     # Smart Context Expansion
     expanded_context = set()
@@ -82,9 +84,9 @@ OUTPUT FORMAT:
         try: Path(msg_file).unlink()
         except: pass
 
-def perform_semantic_search(query_text, limit=3, only_extensions=None):
+def perform_semantic_search(query_text, limit=3, only_extensions=None, exclude_file=None):
     """
-    Searches the Vector DB with SQL-side filtering.
+    Searches the Vector DB with SQL-side filtering and Python-side exclusion.
     """
     try:
         db = VectorStore()
@@ -92,8 +94,6 @@ def perform_semantic_search(query_text, limit=3, only_extensions=None):
         # Determine SQL Filter
         path_filter = None
         if only_extensions:
-            # Note: Postgres LIKE is simple. If you need multiple exts, 
-            # this logic would need to be smarter. For now, we assume .md is the main use case.
             if '.md' in only_extensions:
                 path_filter = '%.md'
         
@@ -104,19 +104,32 @@ def perform_semantic_search(query_text, limit=3, only_extensions=None):
         query_vec = get_embedding(query_text)
         if not query_vec: return []
         
+        # Fetch extra results to account for the exclusion
+        fetch_limit = limit + 2
+        
         # Pass filter to DB
-        results = db.search(query_vec, limit=limit, path_filter=path_filter)
+        results = db.search(query_vec, limit=fetch_limit, path_filter=path_filter)
         
         final_results = []
         for r in results:
             file_path = r[0]
             content = r[1]
+            
+            # --- THE FIX: EXCLUSION LOGIC ---
+            # If the result file matches the plan file we are running, skip it.
+            if exclude_file and str(exclude_file) in str(file_path):
+                continue
+            # --------------------------------
+            
             formatted = f"Source: {file_path}\nContent:\n{content}"
             final_results.append(formatted)
+            
+            if len(final_results) >= limit:
+                break
                 
         return final_results
     except Exception:
-        return [] 
+        return []
 
 def reflect_on_failure(memory, step_goal, errors, project_dir, lang_profile):
     knowledge = memory.get("project_knowledge", {}).get("summary", "Unknown")

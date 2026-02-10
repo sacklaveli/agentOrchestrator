@@ -41,6 +41,7 @@ class CodeIndexer:
             if current_header and current_header not in full_text:
                 full_text = f"{current_header}\n{full_text}"
             chunks.append(full_text)
+            
         return chunks
 
     def chunk_code_structure_aware(self, text, file_ext):
@@ -72,7 +73,20 @@ class CodeIndexer:
 
         if current_chunk:
             chunks.append("\n".join(current_chunk))
-        return chunks
+
+        # --- SAFETY FIX FOR MASSIVE FILES ---
+        # Ollama crashes if a single chunk is too large (e.g. >8k tokens).
+        # We enforce a hard character limit (approx 1500 tokens) to stay safe.
+        final_chunks = []
+        for c in chunks:
+            if len(c) > 6000:
+                # Naive split: chop into 6000-char blocks
+                final_chunks.extend([c[i:i+6000] for i in range(0, len(c), 6000)])
+            else:
+                final_chunks.append(c)
+        
+        return final_chunks
+        # ------------------------------------
 
     def chunk_code_simple(self, text, chunk_size=30, overlap=5):
         lines = text.splitlines()
